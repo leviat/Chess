@@ -8,16 +8,17 @@ from chess.models import ChessMatchModel, User
 from chess.serializers import ChessMatchSerializer, UserSerializer
 from django.core.exceptions import ObjectDoesNotExist
 from asgiref.sync import async_to_sync
+from .game_logic import Board
 
 # connect
 # setup or load room
 # register or load user
 
 
-class ChatConsumer(WebsocketConsumer):
+class ChessConsumer(WebsocketConsumer):
     def connect(self):
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.layer_name = f"chat_{self.room_name}"
+        self.layer_name = f"chess_{self.room_name}"
 
         try:  # load match
             chess_match = ChessMatchModel.objects.get(id=self.room_name)
@@ -64,6 +65,7 @@ class ChatConsumer(WebsocketConsumer):
                 print(err_msg)
                 raise DenyConnection(err_msg)
 
+        self.board = Board(chess_match)
         async_to_sync(self.channel_layer.group_add)(self.layer_name, self.channel_name)
         self.accept()
 
@@ -74,11 +76,24 @@ class ChatConsumer(WebsocketConsumer):
 
     def receive(self, text_data):
         msg = json.loads(text_data)
+        piece = self.board.getPiece(msg["source"])
+
+        if piece is None:
+            return
+
+        if not piece.interact(msg["target"]):
+            return
+
         async_to_sync(self.channel_layer.group_send)(
             self.layer_name,
-            {"type": "chat_message", "user": self.user_name, "text": msg["text"]},
+            {
+                "type": "interaction",
+                "color": msg["color"],
+                "source": msg["source"],
+                "target": msg["target"],
+            },
         )
 
-    def chat_message(self, msg):
-        keys = ["user", "text"]
-        self.send(text_data=json.dumps({k: msg[k] for k in keys}))
+    def interaction(self, msg):
+        keys = ["color", "source", "target"]
+        self.send(json.dumps({k: msg[k] for k in keys}))

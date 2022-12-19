@@ -12,12 +12,13 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess.settings")
 django_asgi_app = get_asgi_application()
 
 import chat.routing
+import chess.routing
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": AllowedHostsOriginValidator(
-            SessionMiddlewareStack(URLRouter(chat.routing.websocket_urlpatterns))
+            SessionMiddlewareStack(URLRouter(chat.routing.websocket_urlpatterns + chess.routing.websocket_urlpatterns))
         ),
     }
 )

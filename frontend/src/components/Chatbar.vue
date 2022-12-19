@@ -7,7 +7,7 @@ TODO: Handle connection lost with exponential backoff algorithm
 */
 
 interface Props {
-    room_id: number,
+  room_id: number,
 }
 
 const props = defineProps<Props>()
@@ -22,26 +22,26 @@ let chatSocket: WebSocket;
 
 onMounted(() => {
   fetch('api/cookie/').then(res => {
-  chatSocket = new WebSocket(`ws://localhost:8000/ws/chat/${props.room_id}/`);
+    chatSocket = new WebSocket(`ws://localhost:8000/ws/chat/${props.room_id}/`);
 
-  chatSocket.onclose = function (e: Event): void {
-    chatOpened.value = false;
-    console.error('Chat socket closed.');
-  };
+    chatSocket.onclose = function (e: Event): void {
+      chatOpened.value = false;
+      console.error('Chat socket closed.');
+    };
 
-  chatSocket.onmessage = function (e: MessageEvent): void {
-    const data = JSON.parse(e.data);
-    messages.push({ 'user': data.user, 'text': data.text })
-  };
+    chatSocket.onmessage = function (e: MessageEvent): void {
+      const data = JSON.parse(e.data);
+      messages.push({ 'user': data.user, 'text': data.text })
+    };
 
-  chatSocket.onopen = function (e: Event): void {
-    chatOpened.value = true;
-    chatSocket.send(
-      JSON.stringify({
-        'text': "Hi, this is your frontend.",
-      }));
-  };
-});
+    chatSocket.onopen = function (e: Event): void {
+      chatOpened.value = true;
+      chatSocket.send(
+        JSON.stringify({
+          'text': "Hi, this is your frontend.",
+        }));
+    };
+  });
 });
 
 const messages: Message[] = reactive([]); // list of messages we received

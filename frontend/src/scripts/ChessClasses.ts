@@ -49,8 +49,8 @@ export class Board {
     readonly fields: (Piece | null)[]
 
     constructor() {
-        this.fields = reactive(new Array<Piece | null>(63));
-        this.fields.fill(null)
+        this.fields = reactive(new Array<Piece | null>(64));
+        this.fields.fill(null);
     }
 
     getFields = () => this.fields;
@@ -67,7 +67,8 @@ export class Board {
     }
 
     spawn(type: PieceType, color: PieceColor, pos: number): Piece {
-        return this.fields[pos] = PieceFactory.create(type, color, pos, this);
+        this.fields[pos] = PieceFactory.create(type, color, pos, this);
+        return this.fields.at(pos)!;
     }
 
     swap(pos: number, otherPos: number) {
@@ -456,15 +457,13 @@ export class King extends Piece {
             return false;
 
         for (let i = this.pos; i != this.pos && i != pos; i += inc) {
-            if(this.isInCheck(i))
+            if (this.isInCheck(i))
                 return false;
         }
 
-        this.board.replace(this.pos, this.pos + 2*inc);
+        this.board.replace(this.pos, this.pos + 2 * inc);
         this.board.replace(pos, this.pos - inc);
-
         return true;
-        
     }
 }
 
