@@ -67,7 +67,7 @@ export class ChessSocket {
 
     protected connect = (): void => {
         let chessSocket: ChessSocket = this;
-        this.socket = new WebSocket(`ws://localhost:8000/ws/chess/${this.roomID}/`);
+        this.socket = new WebSocket(`ws://localhost:8000/ws/chess/room/${this.roomID}`);
         this.socket.onclose = function (e: Event): void {
             chessSocket.isOpen = false;
             console.log('Chess socket closed.');

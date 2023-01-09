@@ -18,7 +18,7 @@ interface ChessRoomBackend {
 
 export const api_chess_room = {
     get(room_id: number): Promise<ChessRoomBackend> {
-        return axios.get<ChessRoomBackend>(`/api/chess/room?id=${room_id}`).then(
+        return axios.get<ChessRoomBackend>(`/api/chess/rooms/${room_id}`).then(
             res => res.data
         ).catch(err => {
             throw err;

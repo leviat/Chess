@@ -1,16 +1,15 @@
 import json
-import random
+import logging
 from datetime import datetime
 
 from channels.generic.websocket import WebsocketConsumer
 from channels.exceptions import DenyConnection
-from chess.models import ChessMatchModel, User, ChessPieceModel, ChessPieceColor
-from chess.serializers import ChessMatchSerializer, UserSerializer
-from django.core.exceptions import ObjectDoesNotExist
+from chess.models import ChessMatchModel, ChessPieceColor
+from chess.serializers import ChessMatchSerializer
 from asgiref.sync import async_to_sync
 from .game_logic import Board
 
-from chess.models import ChessMatchModel, ChessPieceType, ChessPieceColor, PlayerRole
+from chess.models import ChessMatchModel, ChessPieceType, ChessPieceColor
 from chess.serializers import ChessMatchSerializer
 
 default_board_pieces = (
@@ -87,38 +86,8 @@ class ChessConsumer(WebsocketConsumer):
                 serializer.save()
                 chess_match = serializer.instance
             else:
-                err_msg = f"Errors: {serializer.errors}."
-                print(err_msg)
-                raise DenyConnection(err_msg)
-
-        if self.scope["session"].session_key is None:
-            err_msg = "No cookies set. User cannot be identified with a session."
-            print(err_msg)
-            raise DenyConnection(err_msg)
-
-        try:  # load user
-            user = chess_match.users.get(
-                chess_match=self.room_name,
-                session_key=self.scope["session"].session_key,
-            )
-            self.user_name = user.name
-        except User.DoesNotExist:  # register user
-            self.user_name = "user" + str(chess_match.users.count())
-            data = {
-                "chess_match": self.room_name,
-                "session_key": self.scope["session"].session_key,
-                "name": self.user_name,
-            }
-
-            user = UserSerializer(data=data)
-            if user.is_valid():
-                user.save()
-            else:
-                err_msg = (
-                    "User could not be loaded or created. Please report this as a bug."
-                )
-                print(err_msg)
-                raise DenyConnection(err_msg)
+                logging.error(serializer.errors)
+                raise DenyConnection("Room could not be created.")
 
         self.board = Board(chess_match)
         async_to_sync(self.channel_layer.group_add)(self.layer_name, self.channel_name)
@@ -140,7 +109,7 @@ class ChessConsumer(WebsocketConsumer):
             self.layer_name, self.channel_name
         )
 
-    def receiveInteractionMessage(self, msg):
+    def receive_interaction_message(self, msg):
         chess_match = ChessMatchModel.objects.get(id=self.room_name)
         piece = self.board.getPiece(msg["source"])
         player_color = None
@@ -183,7 +152,7 @@ class ChessConsumer(WebsocketConsumer):
         msg = json.loads(text_data)
 
         if msg["type"] == "interaction":
-            self.receiveInteractionMessage(msg["data"])
+            self.receive_interaction_message(msg["data"])
 
     def interaction(self, msg):
         self.send(json.dumps({"type": msg["type"], "data": msg["data"]}))

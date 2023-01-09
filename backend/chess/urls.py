@@ -20,10 +20,9 @@ from rest_framework.urlpatterns import format_suffix_patterns
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("chat.urls")),
-    # path("api/chess/room/test/", views.ChessMatchTest.as_view()),
-    # path("api/chess/room", views.ChessMatchDetail.as_view()),
-    path("api/chess/role", views.ChessMatchRole.as_view()),
+    path("api/chess/rooms", views.ChessMatchList.as_view()),
+    path("api/chess/rooms/<int:id>", views.ChessMatchDetail.as_view()),
+    path("api/chess/rooms/<int:id>/role", views.ChessMatchRole.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

@@ -20,13 +20,6 @@ class ChessPieceColor(models.TextChoices):
 class PlayerRole(models.TextChoices):
     OBSERVER = "O", _("Observer")
 
-    @classmethod
-    def choices(cls):
-        return (
-            *ChessPieceColor.choices(),
-            (cls.OBSERVER, _("Observer")),
-        )
-
 
 class ChessMatchModel(models.Model):
     TEST_MATCH_ID = 9999999999
@@ -56,17 +49,3 @@ class ChessPieceModel(models.Model):
     )
     type = models.CharField(max_length=2, choices=ChessPieceType.choices, null=False)
     color = models.CharField(max_length=1, choices=ChessPieceColor.choices, null=False)
-
-
-class User(models.Model):
-    session_key = models.CharField(max_length=40)
-    chess_match = models.ForeignKey(
-        ChessMatchModel, related_name="users", on_delete=models.CASCADE
-    )
-    name = models.CharField(null=False, max_length=255)
-
-    class Meta:
-        unique_together = (
-            "session_key",
-            "chess_match",
-        )

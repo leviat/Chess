@@ -1,10 +1,11 @@
+import logging
 from rest_framework.views import APIView
 from django.http import Http404
 from rest_framework.response import Response
-from rest_framework import status, mixins, generics
+from rest_framework import status, generics
 
 from chess.models import ChessMatchModel, ChessPieceType, ChessPieceColor, PlayerRole
-from chess.serializers import ChessMatchSerializer
+from chess.serializers import ChessMatchSerializer, ChessMatchInfoSerializer
 
 default_board_pieces = (
     [
@@ -62,81 +63,48 @@ default_board_pieces = (
 )
 
 
+class ChessMatchList(generics.ListAPIView):
+    queryset = ChessMatchModel.objects.all()
+    serializer_class = ChessMatchInfoSerializer
+
+
 class ChessMatchDetail(APIView):
-    def get(self, request, format=None):
-        if request.query_params.get("id") is None:
-            return Response("Specify a room id.", status=status.HTTP_400_BAD_REQUEST)
-
+    def get(self, request, id, format=None):
         try:
-            id = request.query_params.get("id")
             chess_match = ChessMatchModel.objects.get(pk=id)
-            serializer = ChessMatchSerializer(chess_match)
-
-            if chess_match.black is not None:
-                serializer.data["black"] = chess_match.users.get(
-                    session_key=chess_match.black
-                ).name
-
-            if chess_match.white is not None:
-                serializer.data["white"] = chess_match.users.get(
-                    session_key=chess_match.white
-                ).name
-
-            return Response(serializer.data)
-        except ChessMatchModel.DoesNotExist:
-            data = {"id": id, "pieces": default_board_pieces}
-            serializer = ChessMatchSerializer(data=data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            print(serializer.errors)
-            return Response("Specify a room id.", status=status.HTTP_400_BAD_REQUEST)
-
-
-class ChessMatchTest(APIView):
-    """
-    View to retrieve and create a chess match for testing
-    """
-
-    def get_object(self):
-        try:
-            return ChessMatchModel.objects.get(pk=ChessMatchModel.TEST_MATCH_ID)
         except ChessMatchModel.DoesNotExist:
             raise Http404
-
-    def get(self, request, format=None):
-        test_match = self.get_object()
-        serializer = ChessMatchSerializer(test_match)
+        serializer = ChessMatchInfoSerializer(chess_match)
         return Response(serializer.data)
 
-    def post(self, request, format=None):
-        request.data["id"] = ChessMatchModel.TEST_MATCH_ID
-        ChessMatchModel.objects.filter(
-            id=ChessMatchModel.TEST_MATCH_ID
-        ).delete()  # ensures that we also delete all related data e.g. chess pieces and users
-        serializer = ChessMatchSerializer(data=request.data)
+    def post(self, request, id, format=None):
+        if ChessMatchModel.objects.filter(pk=id).exists():
+            return Response(
+                "Chess match already exists. Overwriting is forbidden.",
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        data = {"id": id, "pieces": default_board_pieces}
+        serializer = ChessMatchSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        print(request.data)
-        print(serializer.errors)
+            serializer = ChessMatchInfoSerializer(serializer.instance)
+            return Response(serializer.data)
+        logging.error(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, format=None):
-        test_match = self.get_object()
-        test_match.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ChessMatchRole(APIView):
-    def get(self, request, format=None):
-        if request.query_params.get("room_id") is None:
-            return Response("Specify a room id.", status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request, id, format=None):
         try:
-            id = request.query_params.get("room_id")
             chess_match = ChessMatchModel.objects.get(pk=id)
         except ChessMatchModel.DoesNotExist:
             return Response("Match does not exist", status=status.HTTP_404_NOT_FOUND)
+
+        if request.session.session_key is None:
+            return Response(
+                data={"role": PlayerRole.OBSERVER}, status=status.HTTP_200_OK
+            )
 
         if chess_match.white == request.session.session_key:
             return Response(
@@ -150,10 +118,7 @@ class ChessMatchRole(APIView):
 
         return Response(data={"role": PlayerRole.OBSERVER}, status=status.HTTP_200_OK)
 
-    def post(self, request, format=None):
-        if request.query_params.get("room_id") is None:
-            return Response("Specify a room id.", status=status.HTTP_400_BAD_REQUEST)
-
+    def post(self, request, id, format=None):
         if request.session.session_key is None:
             return Response(
                 "Cookies have not been set. Cannot identify user.",
@@ -161,7 +126,6 @@ class ChessMatchRole(APIView):
             )
 
         try:
-            id = request.query_params.get("room_id")
             chess_match = ChessMatchModel.objects.get(pk=id)
         except ChessMatchModel.DoesNotExist:
             return Response("Match does not exist", status=status.HTTP_404_NOT_FOUND)
