@@ -1,74 +1,62 @@
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue';
 import type { Ref } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import ChessPiece from './ChessPiece.vue';
-import { PieceColor, BoardOccupancy, Piece, Board } from '../scripts/ChessClasses';
-
-import { api_chess_room } from '../scripts/api'
+import { PieceColor, Board, PlayerRole, Match } from '../scripts/ChessClasses';
+import { ChessSocket, InteractionEvent } from '../scripts/ChessSocket';
 
 interface Props {
     room_id: number,
-}
-
-interface ChessWSMessage {
-    color: PieceColor,
-    source: number,
-    target: number,
+    role: PlayerRole | PieceColor,
 }
 
 const props = defineProps<Props>()
-const board = new Board();
-const boardFields = board.getFields();
-const playerColor: Ref<PieceColor | null> = ref(PieceColor.BLACK);
+const match = new Match(new Board(), props.role, PieceColor.WHITE);
+let chessSocket: ChessSocket;
 
-let chessSocket: WebSocket;
+const handleInteractionEvent = (event: InteractionEvent): void => {
+    if (match.board.getPiece(event.source)?.interact(event.target)) {
+        match.nextTurn();
+    }
+    else {
+        console.error(`Error: Invalid action of ${event.source} to ${event.target}`);
+    }
+}
+
+onMounted(() => {
+    chessSocket = new ChessSocket(props.room_id);
+
+    chessSocket.subscribeMatchState(state => {
+        state.pieces.forEach(piece => match.board.spawn(piece.type, piece.color, piece.pos));
+        match.turn = state.turn;
+    })
+
+    watch(() => props.role, (newRole, oldRole) => {
+        if (oldRole === PlayerRole.OBSERVER)
+            chessSocket.unsubscribeInteractionAll(handleInteractionEvent);
+        else if (oldRole === PieceColor.BLACK)
+            chessSocket.unsubscribeInteractionWhite(handleInteractionEvent);
+        else if (oldRole === PieceColor.WHITE)
+            chessSocket.unsubscribeInteractionBlack(handleInteractionEvent);
+
+        if (newRole === PlayerRole.OBSERVER)
+            chessSocket.subscribeInteractionAll(handleInteractionEvent);
+        else if (newRole === PieceColor.BLACK)
+            chessSocket.subscribeInteractionWhite(handleInteractionEvent);
+        else if (newRole === PieceColor.WHITE)
+            chessSocket.subscribeInteractionBlack(handleInteractionEvent);
+    }, { immediate: true });
+})
+
 const focusedField: Ref<number | null> = ref(null);
 const movableFields = computed(() =>
-    (focusedField.value !== null && board.isOccupied(focusedField.value))
-        ? boardFields[focusedField.value]!.movableFields()
+    (focusedField.value !== null && match.board.isOccupied(focusedField.value))
+        ? match.board.getFields()[focusedField.value]!.movableFields()
         : new Array<number>());
 const attackableFields = computed(() =>
-    (focusedField.value !== null && board.isOccupied(focusedField.value))
-        ? boardFields[focusedField.value]!.attackableFields()
+    (focusedField.value !== null && match.board.isOccupied(focusedField.value))
+        ? match.board.getFields()[focusedField.value]!.attackableFields()
         : new Array<number>());
-
-const loadingCounter = ref(0);
-
-const isLoading = computed(() => loadingCounter.value > 0);
-
-onMounted(() => {
-    loadingCounter.value++;
-    fetch('api/cookie/').then(res => {
-        chessSocket = new WebSocket(`ws://localhost:8000/ws/chess/${props.room_id}/`);
-
-        chessSocket.onclose = function (e: Event): void {
-            console.log('Chess socket closed.');
-            loadingCounter.value++;
-        };
-
-        chessSocket.onmessage = function (e: MessageEvent): void {
-            const data: ChessWSMessage = JSON.parse(e.data);
-            board.getPiece(data.source)?.interact(data.target);
-        };
-
-        chessSocket.onopen = function (e: Event): void {
-            loadingCounter.value--;
-            console.log("Chess socket opened.")
-        };
-    });
-});
-
-onMounted(() => {
-    loadingCounter.value++;
-    api_chess_room.get(props.room_id).then(
-        res => {
-            res.forEach(piece => {
-                board.spawn(piece.type, piece.color, piece.pos)
-            });
-            loadingCounter.value--;
-        }
-    ).catch(err => console.log(err));
-})
 
 function backgroundColor(pos: number): string {
     if (focusedField.value === pos) {
@@ -92,13 +80,12 @@ function backgroundColor(pos: number): string {
 }
 
 function handleClick(pos: number) {
-    // piece already in focus?
-    // possible actions:
-    // 1. move / attack specified field if possible
-    // 2. otherwise remove focus
+    if (match.turn !== props.role) {
+        return;
+    }
 
     if (focusedField.value === null) {
-        if (board.isOccupied(pos) && board.getColor(pos) === playerColor.value) {
+        if (match.board.isOccupied(pos) && match.board.getColor(pos) === props.role) {
             focusedField.value = pos;
             return;
         }
@@ -110,27 +97,19 @@ function handleClick(pos: number) {
         return;
     }
 
-    let color = board.getColor(focusedField.value);
-
-    if (board.getPiece(focusedField.value)!.interact(pos)) {
-        let msg: ChessWSMessage = {
-            color: color,
-            source: focusedField.value,
-            target: pos
-        }
-        chessSocket.send(JSON.stringify(msg));
+    if (match.board.getPiece(focusedField.value)!.interact(pos)) {
+        chessSocket.publishInteraction({ source: focusedField.value, target: pos, color: props.role })
         focusedField.value = null;
-        return;
+        match.nextTurn();
     }
 }
 
 </script>
 
 <template>
-    <div class="bg-blue-200 grid grid-cols-8 grid-rows-8 gap-0 self-center" style="height: 40vw; width: 40vw"
-        data-test="board">
-        <ChessPiece v-if="!isLoading" v-for="pos in boardFields.keys()" :class="backgroundColor(pos)"
-            class="h-full w-full p-2 justify-self-center self-center" :piece="board.getPiece(pos)"
-            @click="handleClick(pos)" :room-id="props.room_id" />
+    <div class="grid grid-cols-8 grid-rows-8 gap-0 self-center" data-test="board">
+        <ChessPiece v-for="pos in match.board.getFields().keys()" :class="backgroundColor(pos)"
+            class="h-full w-full p-2 justify-self-center self-center" :piece="match.board.getPiece(pos)"
+            @click="handleClick(pos)" />
     </div>
 </template>

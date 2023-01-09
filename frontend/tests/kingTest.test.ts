@@ -49,4 +49,7 @@ describe('King', () => {
         expect(board.getPiece(0)).toEqual(rook);
     })
 
+    it('can only move king if he is checked', () => {
+        expect(false).toBeTruthy();
+    })
 })

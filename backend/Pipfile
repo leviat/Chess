@@ -8,9 +8,7 @@ django = "*"
 channels = {extras = ["daphne"], version = "*"}
 channels-redis = "*"
 python-dotenv = "*"
-
-[dev-packages]
-black = "*"
+djangorestframework = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.11"

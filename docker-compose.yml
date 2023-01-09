@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  backend-api:
+    build:
+      context: ./backend
+    command: >
+      sh -c "pipenv run python manage.py migrate --run-syncdb &&
+             pipenv run python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/:/opt/django-backend
+    networks:
+      - backend_network
+    depends_on:
+      - redis
+
+  frontend:
+      build:
+        context: ./frontend
+      command: yarn dev
+      restart: on-failure
+      volumes:
+        - ./frontend/:/opt/frontend
+        - /opt/frontend/node_modules
+      networks:
+        - backend_network
+      ports:
+        - 5173:5173
+      depends_on:
+        - backend-api
+
+  redis:
+    image: redis:latest
+    ports:
+      - 6379:6379
+    networks:
+      - backend_network
+
+networks:
+  backend_network: {}

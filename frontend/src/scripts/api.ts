@@ -1,8 +1,5 @@
-import { PieceFactory, BoardOccupancy, Piece, PieceColor, PieceType } from "./ChessClasses"
+import { PieceColor, PieceType, PlayerRole } from "./ChessClasses"
 import axios from 'axios';
-import { AxiosResponse } from 'axios'
-
-const BASE_URL = 'http://127.0.0.1:8000';
 
 interface PieceBackend {
     pos: number,
@@ -13,17 +10,38 @@ interface PieceBackend {
 interface ChessRoomBackend {
     id: number,
     last_accessed: Date,
-    white: string | null,
-    black: string | null,
-    pieces: Array<PieceBackend>
+    white: PieceColor | null,
+    black: PieceColor | null,
+    pieces: Array<PieceBackend>,
+    turn: PieceColor,
 }
 
 export const api_chess_room = {
-    get(room_id: number): Promise<Array<PieceBackend>> {
+    get(room_id: number): Promise<ChessRoomBackend> {
         return axios.get<ChessRoomBackend>(`/api/chess/room?id=${room_id}`).then(
-            res => res.data.pieces
+            res => res.data
         ).catch(err => {
             throw err;
+        })
+    }
+}
+
+interface ChessPlayerRoleBackend {
+    role: PlayerRole | PieceColor
+}
+
+export const api_role = {
+    get(room_id: number): Promise<PlayerRole | PieceColor> {
+        return axios.get<ChessPlayerRoleBackend>(`/api/chess/role?room_id=${room_id}`).then(
+            res => res.data.role
+        ).catch(err => {
+            throw err
+        });
+    },
+
+    register(room_id: number, color: PieceColor) {
+        return axios.post(`/api/chess/role?room_id=${room_id}&color=${color}`).catch(err => {
+            throw err
         })
     }
 }

@@ -12,7 +12,12 @@ export enum PieceType {
 export enum PieceColor {
     WHITE = 'W',
     BLACK = 'B',
-}
+};
+
+export enum PlayerRole {
+    OBSERVER = 'O'
+};
+
 
 const N = -8;
 const E = 1;
@@ -44,6 +49,27 @@ function atBottomBorder(pos: number) {
 }
 
 export type BoardOccupancy = (Piece | null)[]
+
+export class Match {
+    readonly board: Board
+    playerColor: PieceColor | PlayerRole
+    turn: PieceColor
+
+    constructor(board: Board, role: PieceColor | PlayerRole, turn: PieceColor) {
+        this.board = board;
+        this.playerColor = role;
+        this.turn = turn
+    }
+
+    nextTurn(): void {
+        this.turn = this.turn === PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
+    }
+
+    // either a player, i.e. color, or a an observer (null)
+    setPlayerColor(color: PieceColor | PlayerRole) {
+        this.playerColor = color;
+    }
+}
 
 export class Board {
     readonly fields: (Piece | null)[]
@@ -281,7 +307,7 @@ export class Pawn extends Piece {
         let fields = new Array<number>();
 
         if (this.color === PieceColor.WHITE) {
-            if (this.pos < 8) {
+            if (this.pos < 8 || this.board.isOccupied(this.pos - 8)) {
                 return [];
             }
 
@@ -292,7 +318,7 @@ export class Pawn extends Piece {
             fields.push(this.pos - 8);
         }
         else {
-            if (this.pos >= 56) {
+            if (this.pos >= 56 || this.board.isOccupied(this.pos + 8)) {
                 return [];
             }
 

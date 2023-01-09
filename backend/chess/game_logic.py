@@ -1,6 +1,6 @@
 from typing import List, Union, Final
 from abc import ABC
-from .models import ChessMatchModel, ChessPieceModel
+from .models import ChessMatchModel, ChessPieceModel, ChessPieceType, ChessPieceColor
 
 N: Final = -8
 E: Final = 1
@@ -141,7 +141,7 @@ class Piece(ABC):
 
 class Bishop(Piece):
     def __init__(self, color, pos: int, board: Board):
-        super().__init__(ChessPieceModel.BISHOP, color, pos, board)
+        super().__init__(ChessPieceType.BISHOP, color, pos, board)
 
     def interactable(self) -> List[int]:
         fields = list()
@@ -187,7 +187,7 @@ class Bishop(Piece):
 
 class Rook(Piece):
     def __init__(self, color, pos: int, board: Board):
-        super().__init__(ChessPieceModel.ROOK, color, pos, board)
+        super().__init__(ChessPieceType.ROOK, color, pos, board)
 
     def interactable(self) -> List[int]:
         fields = list()
@@ -240,7 +240,7 @@ class Rook(Piece):
 
 class Pawn(Piece):
     def __init__(self, color, pos: int, board: Board):
-        super().__init__(ChessPieceModel.PAWN, color, pos, board)
+        super().__init__(ChessPieceType.PAWN, color, pos, board)
 
     def interactable(self) -> List[int]:
         return self.movableFields().concat(self.attackableFields())
@@ -248,7 +248,7 @@ class Pawn(Piece):
     def movableFields(self) -> List[int]:
         fields = list()
 
-        if self.color == ChessPieceModel.WHITE:
+        if self.color == ChessPieceColor.WHITE:
             if self.pos < 8:
                 return []
 
@@ -271,14 +271,14 @@ class Pawn(Piece):
     def attackableFields(self) -> List[int]:
         fields = list()
 
-        if self.color == ChessPieceModel.WHITE and not atTopBorder(self.pos):
+        if self.color == ChessPieceColor.WHITE and not atTopBorder(self.pos):
             if not atLeftBorder(self.pos):
                 fields.append(self.pos + NW)
 
             if not atRightBorder(self.pos):
                 fields.append(self.pos + NE)
 
-        elif self.color == ChessPieceModel.BLACK and not atBottomBorder(self.pos):
+        elif self.color == ChessPieceColor.BLACK and not atBottomBorder(self.pos):
             if not atLeftBorder(self.pos):
                 fields.append(self.pos + SW)
 
@@ -297,7 +297,7 @@ class Pawn(Piece):
 
 class Knight(Piece):
     def __init__(self, color, pos: int, board: Board):
-        super().__init__(ChessPieceModel.KNIGHT, color, pos, board)
+        super().__init__(ChessPieceType.KNIGHT, color, pos, board)
 
     def interactable(self) -> List[int]:
         fields = list()
@@ -335,7 +335,7 @@ class Knight(Piece):
 
 class King(Piece):
     def __init__(self, color, pos: int, board: Board):
-        super().__init__(ChessPieceModel.KING, color, pos, board)
+        super().__init__(ChessPieceType.KING, color, pos, board)
 
     def interactable(self) -> List[int]:
         fields = list()
@@ -421,7 +421,7 @@ class King(Piece):
 
 class Queen(Piece):
     def __init__(self, color, pos: int, board: Board):
-        super().__init__(ChessPieceModel.QUEEN, color, pos, board)
+        super().__init__(ChessPieceType.QUEEN, color, pos, board)
 
     def interactable(self) -> List[int]:
         fields = list()
@@ -504,17 +504,17 @@ class Queen(Piece):
 class PieceFactory:
     @staticmethod
     def create(pieceType, color, pos: int, board: Board) -> Piece:
-        if pieceType == ChessPieceModel.BISHOP:
+        if pieceType == ChessPieceType.BISHOP:
             return Bishop(color, pos, board)
-        elif pieceType == ChessPieceModel.KING:
+        elif pieceType == ChessPieceType.KING:
             return King(color, pos, board)
-        elif pieceType == ChessPieceModel.KNIGHT:
+        elif pieceType == ChessPieceType.KNIGHT:
             return Knight(color, pos, board)
-        elif pieceType == ChessPieceModel.PAWN:
+        elif pieceType == ChessPieceType.PAWN:
             return Pawn(color, pos, board)
-        elif pieceType == ChessPieceModel.QUEEN:
+        elif pieceType == ChessPieceType.QUEEN:
             return Queen(color, pos, board)
-        elif pieceType == ChessPieceModel.ROOK:
+        elif pieceType == ChessPieceType.ROOK:
             return Rook(color, pos, board)
         else:
             raise Exception(f"Invalid piece type: {pieceType}")

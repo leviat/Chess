@@ -1,5 +1,5 @@
 import { describe, assert, expect, it, beforeEach } from 'vitest'
-import {PieceType, PieceColor, Board, Piece} from '../src/scripts/ChessClasses'
+import { PieceType, PieceColor, Board, Piece } from '../src/scripts/ChessClasses'
 
 let board: Board;
 let pawn: Piece;
@@ -60,4 +60,8 @@ describe('Black Pawn', () => {
     it('can attack en passant', () => {
         expect(true).toBeFalsy();
     });
+
+    it('can be turned into another piece at the end of the board', () => {
+        expect(true).toBeFalsy();
+    })
 })

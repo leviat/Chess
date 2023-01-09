@@ -2,10 +2,6 @@
 import { stringifyExpression } from '@vue/compiler-core';
 import { ref, reactive, onMounted } from 'vue';
 
-/*
-TODO: Handle connection lost with exponential backoff algorithm
-*/
-
 interface Props {
   room_id: number,
 }
@@ -19,30 +15,30 @@ interface Message {
 
 const chatOpened = ref(false);
 let chatSocket: WebSocket;
+let backOffTime = 200;
 
-onMounted(() => {
-  fetch('api/cookie/').then(res => {
-    chatSocket = new WebSocket(`ws://localhost:8000/ws/chat/${props.room_id}/`);
+const connectToChatSocket = () => {
+  chatSocket = new WebSocket(`ws://localhost:8000/ws/chat/${props.room_id}/`);
 
-    chatSocket.onclose = function (e: Event): void {
-      chatOpened.value = false;
-      console.error('Chat socket closed.');
-    };
+  chatSocket.onclose = function (e: Event): void {
+    chatOpened.value = false;
+    console.log('Chat socket closed.');
+    backOffTime = backOffTime < 20000 ? backOffTime * 2 + Math.random() * 100 : backOffTime;
+    setTimeout(connectToChatSocket, backOffTime);
+  };
 
-    chatSocket.onmessage = function (e: MessageEvent): void {
-      const data = JSON.parse(e.data);
-      messages.push({ 'user': data.user, 'text': data.text })
-    };
+  chatSocket.onmessage = function (e: MessageEvent): void {
+    const data = JSON.parse(e.data);
+    messages.push({ 'user': data.user, 'text': data.text })
+  };
 
-    chatSocket.onopen = function (e: Event): void {
-      chatOpened.value = true;
-      chatSocket.send(
-        JSON.stringify({
-          'text': "Hi, this is your frontend.",
-        }));
-    };
-  });
-});
+  chatSocket.onopen = function (e: Event): void {
+    chatOpened.value = true;
+    backOffTime = 200;
+  }
+};
+
+onMounted(() => connectToChatSocket());
 
 const messages: Message[] = reactive([]); // list of messages we received
 const messageText = ref(""); // current message that is being typed in
@@ -66,7 +62,7 @@ function handleMessageEntered(e: KeyboardEvent | MouseEvent): void {
 </script>
 
 <template>
-  <div class="max-w-xs flex flex-col h-screen p-2">
+  <div class="max-w-xs flex flex-col h-auto p-2 bg-white rounded-sm">
     <div id="#chatBar" class="border-2 border-gray-400 overflow-y-scroll w-full flex-grow text-left px-4 py-2">
       <p v-for="message in messages">
         {{ message.user }}:

@@ -13,7 +13,7 @@ class ChessMatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChessMatchModel
-        fields = ["id", "last_accessed", "white", "black", "pieces"]
+        fields = ["id", "last_accessed", "white", "black", "pieces", "turn"]
 
     def create(self, validated_data):
         pieces_data = validated_data.pop("pieces")
@@ -22,13 +22,6 @@ class ChessMatchSerializer(serializers.ModelSerializer):
         for piece_data in pieces_data:
             ChessPieceModel.objects.create(chess_match=chess_match, **piece_data)
         return chess_match
-
-    def update(self, instance, validated_data):
-        instance.last_accessed = validated_data.get(
-            "last_accessed", instance.last_accessed
-        )
-        instance.white = validated_data.get("white", instance.white)
-        instance.black = validated_data.get("black", instance.black)
 
 
 class TestMatchSerializer(serializers.ModelSerializer):

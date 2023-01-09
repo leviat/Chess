@@ -1,17 +1,19 @@
 <script setup lang="ts">
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
-import HelloWorld from './components/HelloWorld.vue'
-import Chatbar from './components/Chatbar.vue'
-import ChessBoard from './components/ChessBoard.vue'
+import { onMounted, ref } from 'vue';
+import ChessRoom from './components/ChessRoom.vue';
+
+const isLoading = ref(true);
+
+onMounted(() => {
+  fetch('api/cookie/').then(res => isLoading.value = false);
+})
 
 </script>
 
 <template>
-  <div class="flex flex-row gap-2 justify-center">
-    <ChessBoard :room_id="1"/>
-    <Chatbar :room_id="1" class="bg-green-200" />
-  </div>
+  <ChessRoom v-if="!isLoading" :room_id="1"></ChessRoom>
 </template>
 
 <style scoped>
